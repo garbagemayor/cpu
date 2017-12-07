@@ -1,7 +1,7 @@
 
 # PlanAhead Launch Script for Pre-Synthesis Floorplanning, created by Project Navigator
 
-create_project -name tyt_cpu2 -dir "C:/Users/rv/Desktop/tyt_cpu2/tyt_cpu2/planAhead_run_1" -part xc3s1200efg320-4
+create_project -name tyt_cpu2 -dir "C:/Users/rv/Desktop/cpu/planAhead_run_3" -part xc3s1200efg320-4
 set_param project.pinAheadLayout yes
 set srcset [get_property srcset [current_run -impl]]
 set_property target_constrs_file "tyt_cpu2.ucf" [current_fileset -constrset]

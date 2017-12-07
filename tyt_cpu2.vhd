@@ -15,11 +15,11 @@ entity tyt_cpu2 is
 		OE_ram1 : out  STD_LOGIC := '1';
 		WE_ram1 : out  STD_LOGIC := '1';
 		EN_ram1 : out  STD_LOGIC := '0';
-		--data_ram2 : inout  STD_LOGIC_VECTOR (15 downto 0) := "0000000000000000";
-		--addr_ram2 : out  STD_LOGIC_VECTOR (17 downto 0) := "000000000000000000";
-		--OE_ram2 : out  STD_LOGIC := '1';
-		--WE_ram2 : out  STD_LOGIC := '1';
-		--EN_ram2 : out  STD_LOGIC := '0';
+		data_ram2 : inout  STD_LOGIC_VECTOR (15 downto 0) := "0000000000000000";
+		addr_ram2 : out  STD_LOGIC_VECTOR (17 downto 0) := "000000000000000000";
+		OE_ram2 : out  STD_LOGIC := '1';
+		WE_ram2 : out  STD_LOGIC := '1';
+		EN_ram2 : out  STD_LOGIC := '0';
 		rdn: out STD_LOGIC := '1';
 		wrn: out STD_LOGIC := '1';
 		data_ready	: in std_logic;
@@ -60,6 +60,10 @@ architecture behavioral of tyt_cpu2 is
 	signal LW_pc	: array16 := zero;
 	signal LW_jump	: std_logic := '0';		
 	signal LW_nop	: std_logic := '0';
+	signal access_ram2	: std_logic := '0';
+	signal SW_ram2_data	: array16 := zero;
+	signal SW_ram2_addr	: array16 := zero;
+	signal SW_ram2_op	: int5 := 0;
 	
 	
 	signal data_conf_A		: std_logic := '0';
@@ -73,18 +77,22 @@ architecture behavioral of tyt_cpu2 is
 	--	IF
 	shared variable if_state	: int5 := 0;
 	shared variable if_ins	: array16 := zero;
+	shared variable if_data	: array16 := zero;
 	shared variable if_pc	: array16 := zero;
 	shared variable if_op	: int5 := 0;
+	shared variable if_nop	: int5 := 0;
 	
 	--	IF/ID
 	signal ifid_ins		: array16 := zero;
 	signal ifid_op			: int5 := 0;
 	signal ifid_pc			: array16 := zero;
+	signal if_wb_data	: array16 := zero;
 	
 	--	ID
 	shared variable id_state	: int5 := 0;
 	shared variable id_ins	: array16 := zero;
 	shared variable id_op	: int5 := 0;
+	shared variable id_nop	: int5 := 0;
 	shared variable id_pc	: array16 := zero;
 	shared variable rx		: array16 := zero;
 	shared variable ry		: array16 := zero;
@@ -104,12 +112,13 @@ architecture behavioral of tyt_cpu2 is
 	shared variable A	: array16 := zero;
 	shared variable B	: array16 := zero;
 	shared variable res	: array16 := zero;
-	shared variable addr	: array16 := zero;
+	shared variable addr	: array16 := "1000000000000000";
 	shared variable ex_imm	: array16 := zero;
 	shared variable ex_lw : std_logic := '0';
 	shared variable ex_wb : std_logic := '0';
 	shared variable ex_br : std_logic := '0'; -- is branch or not
 	shared variable ex_op	: int5 := 0;
+	shared variable ex_nop	: int5 := 0;
 	shared variable ex_pc	: array16 := zero;
 	shared variable ex_rd	: array16 := zero;
 	
@@ -119,7 +128,7 @@ architecture behavioral of tyt_cpu2 is
 	signal exme_op			: int5 := 0;
 	signal exme_rz			: array16 := zero;
 	signal exme_res		: array16 := zero; -- the data to write
-	signal exme_addr		: array16 := zero; -- the data address
+	signal exme_addr		: array16 := "1000000000000000"; -- the data address
 	
 	--	ME
 	shared variable me_state	: int5 := 0;
@@ -128,17 +137,23 @@ architecture behavioral of tyt_cpu2 is
 	shared variable me_op		: int5 := 0;
 	shared variable me_pc		: array16 := zero;
 	shared variable me_rz		: array16 := zero;
+	shared variable me_addr		: array16 := "1000000000000000";
+	shared variable me_data		: array16 := zero;
 	shared variable me_con 	: int5 := 0;
+	shared variable clk_div 	: int5 := 0;
 	
 	--	ME/WB
 	signal mewb_data		: array16 := zero;
 	signal mewb_wb			: std_logic := '0';
 	signal mewb_op			: int5 := 0;
 	signal mewb_rz			: array16 := zero;
-	
+	signal wb_just_nop		: std_logic := '0';
+	shared variable wb_data 	: array16 := zero;
 	
 	--	WB
 	shared variable wb_state	: int5 := 0;
+	shared variable wb_nop	: int5 := 0;
+	shared variable wb_release : int5 := 0;
 	
 	--	register
 	signal r0				: array16 := zero;
@@ -242,145 +257,190 @@ begin
 	begin
 		if (clk'event and clk = '1') then
 			case if_state is
-				when 0 =>
+				when 0 =>  
+					--	get correct PC
+					if B_jump = '1' then
+						if_pc := B_pc;
+					elsif LW_jump = '1' then
+						if_pc := LW_pc;
+					elsif JR_jump = '1' then
+						if_pc := JR_pc;
+					else
+						if_pc := pc_next;
+					end if;
+
+					-- when mem access ram2
+					if access_ram2 = '0' then
+						if_nop := 0;
+					else
+						if SW_ram2_op = 15 or SW_ram2_op = 16 then
+							-- read
+							if_nop := 1;
+						else
+							-- write
+							if_nop := 2;
+						end if;
+					end if;
 				when 1 =>
+					EN_ram2 <= '0';
+					if if_nop = 0 then
+						addr_ram2 <= "00" & if_pc;
+						data_ram2 <= "ZZZZZZZZZZZZZZZZ";
+						OE_ram2 <= '0';
+					elsif if_nop = 1 then
+						addr_ram2 <= "00" & SW_ram2_addr;
+						data_ram2 <= "ZZZZZZZZZZZZZZZZ";
+						OE_ram2 <= '0';
+					else
+						WE_ram2 <= '1';
+						OE_ram2 <= '1';
+						data_ram2 <= SW_ram2_data;
+						addr_ram2 <= "00" & SW_ram2_addr;
+					end if;
 				when 2 =>
+					if if_nop = 0 then
+						if_ins := data_ram2;
+						OE_ram2 <= '1';
+					elsif if_nop = 1 then
+						if_data := data_ram2;
+						OE_ram2 <= '1';
+					else
+						WE_ram2 <= '0';
+					end if;
 				when 3 =>
-				when 4 =>
-					pc_next <= if_pc + "1";
-					ifid_pc <= if_pc + "1";
-					ifid_ins <= if_ins;
-					
-					-- if if_pc = "0100000000000010" then
-						-- led <= r7;
-					-- end if;
-					
-					case if_ins(15 downto 11) is
-						when "00001" =>
-							--NOP
-							if_op := 0;
-						when "00010" =>
-							--B
-							if_op := 1;
-						when "00100" =>
-							--BEQZ
-							if_op := 2;
-						when "00101" =>
-							--BNEZ
-							if_op := 3;
-						when "00110" =>
-							case if_ins(1 downto 0) is
-								when "00" =>
-									--SLL
-									if_op := 4;
-								when "11" =>
-									--SRA
-									if_op := 5;
-								when others =>
-							end case;
-						when "01000" =>
-							--ADDIU3
-							if_op := 6;
-						when "01001" =>
-							--ADDIU
-							if_op := 7;
-						when "01011" =>
-							--SLTUI
-							if_op := 8;
-						when "01100" =>
-							case if_ins(10 downto 8) is
-								when "000" =>
-									--BTEQZ
-									if_op := 9;
-								when "011" =>
-									--ADDSP
-									if_op := 10;
-								when "100" =>
-									--MTSP
-									if_op := 11;
-								when others=>
-							end case;
-						when "01101" =>
-							--LI
-							if_op := 12;
-							--led <= setreg(if_ins(10 downto 8))+1;
-							--led <= "1110001110001111";
-						when "01110" =>
-							--CMPI
-							if_op := 13;
-						when "01111" =>
-							--MOVE
-							if_op := 14;
-						when "10010" =>
-							--LWSP
-							if_op := 15;
-						when "10011" =>
-							--LW
-							if_op := 16;
-						when "11010" =>
-							--SWSP
-							if_op := 17;
-						when "11011" =>
-							--SW
-							if_op := 18;
-						when "11100" =>
-							case if_ins(1 downto 0) is
-								when "01" =>
-									--ADDU
-									if_op := 19;
-								when "11" =>
-									--SUBU
-									if_op := 20;
-								when others =>
-							end case;
-						when "11101" =>
-							case if_ins(4 downto 0) is
-								when "00000" =>
-									if if_ins(6) = '0' then
-										--JR
-										if_op := 21;
-									elsif if_ins(6) = '1' then
-										--MFPC
-										if_op := 22;
-									end if;
-								when "01100" =>
-									--AND
-									if_op := 23;
-								when "01010" =>
-									--CMP
-									if_op := 24;
-								when "01101" =>
-									--OR
-									if_op := 25;
-								when "00010" =>
-									--SLT
-									if_op := 26;
-								when "01011" =>
-									--NEG
-									if_op := 27;
-								when others =>
-							end case;
-									
+					if if_nop = 0 then
+						led <= if_pc;
+						pc_next <= if_pc + "1";
+						ifid_pc <= if_pc + "1";
+						ifid_ins <= if_ins;
 						
-						when "11110" =>
-							case if_ins(0) is
-								when '0' =>
-									--MFIH
-									if_op := 28;
-								when '1' =>
-									--MTIH
-									if_op := 29;
-								when others =>
-							end case;
-						
-						when others =>
-					end case;
-					ifid_op <= if_op;
+						case if_ins(15 downto 11) is
+							when "00001" =>
+								--NOP
+								if_op := 0;
+							when "00010" =>
+								--B
+								if_op := 1;
+							when "00100" =>
+								--BEQZ
+								if_op := 2;
+							when "00101" =>
+								--BNEZ
+								if_op := 3;
+							when "00110" =>
+								case if_ins(1 downto 0) is
+									when "00" =>
+										--SLL
+										if_op := 4;
+									when "11" =>
+										--SRA
+										if_op := 5;
+									when others =>
+								end case;
+							when "01000" =>
+								--ADDIU3
+								if_op := 6;
+							when "01001" =>
+								--ADDIU
+								if_op := 7;
+							when "01011" =>
+								--SLTUI
+								if_op := 8;
+							when "01100" =>
+								case if_ins(10 downto 8) is
+									when "000" =>
+										--BTEQZ
+										if_op := 9;
+									when "011" =>
+										--ADDSP
+										if_op := 10;
+									when "100" =>
+										--MTSP
+										if_op := 11;
+									when others=>
+								end case;
+							when "01101" =>
+								--LI
+								if_op := 12;
+								--led <= setreg(if_ins(10 downto 8))+1;
+							when "01110" =>
+								--CMPI
+								if_op := 13;
+							when "01111" =>
+								--MOVE
+								if_op := 14;
+							when "10010" =>
+								--LWSP
+								if_op := 15;
+							when "10011" =>
+								--LW
+								if_op := 16;
+							when "11010" =>
+								--SWSP
+								if_op := 17;
+							when "11011" =>
+								--SW
+								if_op := 18;
+							when "11100" =>
+								case if_ins(1 downto 0) is
+									when "01" =>
+										--ADDU
+										if_op := 19;
+									when "11" =>
+										--SUBU
+										if_op := 20;
+									when others =>
+								end case;
+							when "11101" =>
+								case if_ins(4 downto 0) is
+									when "00000" =>
+										if if_ins(6) = '0' then
+											--JR
+											if_op := 21;
+										elsif if_ins(6) = '1' then
+											--MFPC
+											if_op := 22;
+										end if;
+									when "01100" =>
+										--AND
+										if_op := 23;
+									when "01010" =>
+										--CMP
+										if_op := 24;
+									when "01101" =>
+										--OR
+										if_op := 25;
+									when "00010" =>
+										--SLT
+										if_op := 26;
+									when "01011" =>
+										--NEG
+										if_op := 27;
+									when others =>
+								end case;
+										
+							
+							when "11110" =>
+								case if_ins(0) is
+									when '0' =>
+										--MFIH
+										if_op := 28;
+									when '1' =>
+										--MTIH
+										if_op := 29;
+									when others =>
+								end case;
+							
+							when others =>
+						end case;
+						ifid_op <= if_op;
+					elsif if_nop = 1 then
+						if_wb_data <= if_data;
+					end if;
 				when others =>
 					--	do nothing
-				
 			end case;
-			if if_state = 4 then
+			if if_state = 3 then
 				if_state := 0;
 			else
 				if_state := if_state + 1;
@@ -395,31 +455,32 @@ begin
 	begin
 		if clk'event and clk = '1' then
 			case id_state is
-				
 				when 0 =>
 					--	get OP
-					if (B_nop = '1' or JR_nop = '1') or LW_nop = '1' then
+					if (B_nop = '1' or JR_nop = '1' or LW_nop = '1' or access_ram2 = '1') then
 						id_op := 0;
 					else
 						id_op := ifid_op;
 					end if;
-					
+					if access_ram2 = '1' then
+						id_nop := 1;
+					else
+						id_nop := 0;
+					end if;
 					id_pc := ifid_pc;
 					id_ins := ifid_ins;
 					rx := "1111111111111111";
 					ry := "1111111111111111";
 					
 				when 1 =>
-					
-				when 2 =>
-				
-				when 3 =>
-					JR_jump <= '0';
-					
-					JR_nop <= '0';
-					
-					idex_pc <= id_pc;
-					idex_op <= id_op;
+					if id_nop = 0 then
+						JR_jump <= '0';
+						
+						JR_nop <= '0';
+						
+						idex_pc <= id_pc;
+						idex_op <= id_op;
+					end if;
 					
 					case id_op is
 						when 0 =>
@@ -653,15 +714,17 @@ begin
 						when others =>
 					end case;
 				
-				when 4 =>
-					idex_rz <= rz;
-					idex_imm <= imm;
-					idex_wb <= wb;
+				when 2 =>
+					if id_nop = 0 then
+						idex_rz <= rz;
+						idex_imm <= imm;
+						idex_wb <= wb;
+					end if;
 				
 				when others =>
 					--	do nothing
 			end case;
-			if id_state = 4 then
+			if id_state = 3 then
 				id_state := 0;
 			else
 				id_state := id_state + 1;
@@ -679,13 +742,16 @@ begin
 			case ex_state is
 				
 				when 0 =>
-					if B_nop = '1' or LW_nop = '1' then
+					if B_nop = '1' or LW_nop = '1' or access_ram2 = '1' then
 						ex_op := 0;
 					else
 						ex_op := idex_op;
 					end if;
-					
-					
+					if access_ram2 = '1' then
+						ex_nop := 1;
+					else 
+						ex_nop := 0;
+					end if;
 					if data_conf_A = '1' then
 						A := res;
 					elsif LW_conf_A = '1' then
@@ -845,55 +911,55 @@ begin
 					end case;
 				
 				when 2 =>
-					
-				when 3 =>
-					--	do nothing
 				
-				when 4 =>
+				when 3 =>
 					--	set register
-					B_jump <= '0';
-					LW_jump <= '0';
-					
-					B_nop <= '0';
-					
-					LW_nop <= '0';
-					data_conf_A <= '0';
-					data_conf_B <= '0';
-					
-					exme_wb <= ex_wb;
-					exme_pc <= ex_pc;
-					exme_op <= ex_op;
-					exme_rz <= ex_rd;
-					exme_res <= res;
-					exme_addr <= addr;
-					
-					if ex_lw = '0' and ex_wb = '1' and id_op /= 0 then
-						if ex_rd = rx then
-							data_conf_A <= '1';
+					if ex_nop = 0 then
+						B_jump <= '0';
+						LW_jump <= '0';
+						
+						B_nop <= '0';
+						
+						LW_nop <= '0';
+						
+						data_conf_A <= '0';
+						data_conf_B <= '0';
+						
+						exme_wb <= ex_wb;
+						exme_pc <= ex_pc;
+						exme_op <= ex_op;
+						exme_rz <= ex_rd;
+						exme_res <= res;
+						exme_addr <= addr;
+						
+						if ex_lw = '0' and ex_wb = '1' and id_op /= 0 then
+							if ex_rd = rx then
+								data_conf_A <= '1';
+							end if;
+							if ex_rd = ry then
+								data_conf_B <= '1';
+							end if;
 						end if;
-						if ex_rd = ry then
-							data_conf_B <= '1';
+						
+						if ex_lw = '1' and id_op /= 0 then
+							if ex_rd = rx or ex_rd = ry then
+								LW_jump <= '1';
+								LW_nop <= '1';
+								LW_pc <= ex_pc;
+							end if;
 						end if;
-					end if;
-					
-					if ex_lw = '1' and id_op /= 0 then
-						if ex_rd = rx or ex_rd = ry then
-							LW_jump <= '1';
-							LW_nop <= '1';
-							LW_pc <= ex_pc;
+						
+						if ex_br = '1' then
+							B_jump <= '1';
+							B_nop <= '1';
+							B_pc <= res;
 						end if;
-					end if;
-					
-					if ex_br = '1' then
-						B_jump <= '1';
-						B_nop <= '1';
-						B_pc <= res;
 					end if;
 				when others =>
 					--	do nothing
 				
 			end case;	
-			if ex_state = 4 then
+			if ex_state = 3 then
 				ex_state := 0;
 			else
 				ex_state := ex_state + 1;
@@ -908,33 +974,14 @@ begin
 		if clk'event and clk = '1' then
 			-- led(15) <= data_ready;
 			case me_state is
-				when 0 =>  
-					--	get correct PC
-					if B_jump = '1' then
-						if_pc := B_pc;
-					elsif LW_jump = '1' then
-						if_pc := LW_pc;
-					elsif JR_jump = '1' then
-						if_pc := JR_pc;
-					else
-						if_pc := pc_next;
-					end if;
-					--	insmem prepare data
-					EN_ram1 <= '0';
-					addr_ram1 <= "00" & if_pc;
-					data_ram1 <= "ZZZZZZZZZZZZZZZZ";
-				when 1 =>
-					--	insmem pull down
-					OE_ram1 <= '0';
-				when 2 =>
-					--	insmem pull up
-					if_ins := data_ram1;
-					OE_ram1 <= '1';
-					
+				when 0 =>
+				
 					me_wb := exme_wb;
 					me_pc := exme_pc;
 					me_op := exme_op;
 					me_rz := exme_rz;
+					me_addr := exme_addr;
+					me_data := exme_res;
 					
 					--me_con LoadSerial= 1 LW=2  WriteSerial=3   SW=4   Other=0 
 					me_con := 0;
@@ -943,7 +990,7 @@ begin
 					--	datamem prepare data
 					case me_op is
 						when 15 | 16 => --LW_SP  LW
-							if exme_addr = "1011111100000000" then -- load_serial
+							if me_addr = "1011111100000000" then -- load_serial
 								--shut down ram1
 								EN_ram1 <= '1';
 								WE_ram1 <= '1';
@@ -953,7 +1000,7 @@ begin
 								wrn <= '1';
 								data_ram1 <= "ZZZZZZZZZZZZZZZZ";
 								me_con := 1;
-							elsif exme_addr = "1011111100000001" then -- load BF01
+							elsif me_addr = "1011111100000001" then -- load BF01
 								EN_ram1 <= '1';
 								WE_ram1 <= '1';
 								OE_ram1 <= '1';
@@ -971,11 +1018,11 @@ begin
 								wrn <= '1';
 								
 								data_ram1 <= "ZZZZZZZZZZZZZZZZ";
-								addr_ram1 <= "00" & exme_addr;
+								addr_ram1 <= "00" & exme_addr;                        
 								me_con := 2;
 							end if;
 						when 17 | 18 => --SW_SP
-							if exme_addr = "1011111100000000" then -- write_serial
+							if me_addr = "1011111100000000" then -- write_serial
  								--shut down ram1
 								EN_ram1 <= '1';
 								WE_ram1 <= '1';
@@ -984,7 +1031,7 @@ begin
 								wrn <= '1';
 								--prepare serial
 								data_ram1 <= exme_res;
-								me_con := 3; 
+								me_con := 3;
 							else -- SW
 								-- prepare ram1
 								EN_ram1 <= '0';
@@ -1001,8 +1048,7 @@ begin
 							data := exme_res;
 					end case;
 					
-				when 3 =>
-					
+				when 2 =>
 					case me_con is
 						when 1 =>
 							--load_s
@@ -1018,8 +1064,9 @@ begin
 							WE_ram1 <= '0';
 						when others => --do nothing
 					end case;
-
-				when 4 =>
+					access_ram2 <= '0';
+				when 3 =>
+					
 					--	get data
 					case me_con is
 						when 1 =>
@@ -1041,6 +1088,12 @@ begin
 						when others => --do nothing
 					end case;
 					
+					if me_addr(15) = '0' then
+						access_ram2 <= '1';
+						SW_ram2_addr <= me_addr;
+						SW_ram2_data <= me_data;
+						SW_ram2_op <= me_op;
+					end if;
 					--	set register
 					LW_conf_A <= '0';
 					LW_conf_B <= '0';
@@ -1049,10 +1102,6 @@ begin
 					mewb_op <= me_op;
 					mewb_rz <= me_rz;
 					mewb_data <= data;
-										
-										
-					
-					led <= me_pc;
 					
 					if me_wb = '1' and me_op /= 0 and id_op /= 0 then
 						if me_rz = rx then  
@@ -1067,7 +1116,7 @@ begin
 					--	do nothing
 				
 			end case;
-			if me_state = 4 then
+			if me_state = 3 then
 				me_state := 0;
 			else
 				me_state := me_state + 1;
@@ -1082,36 +1131,48 @@ begin
 		if clk'event and clk = '1' then
 			case wb_state is
 				when 0 =>
-					if mewb_wb	 = '1' then
+					if access_ram2 = '1' then -- 暂停一个周期等ram2
+						wb_nop := 1;
+					else
+						wb_nop := 0;
+						wb_data := mewb_data;
+					end if;
+					
+					if wb_just_nop = '1' then -- 如果是暂停回来,那么数据就从ram2来
+						wb_data := if_wb_data;
+						wb_release := 1;
+					end if;
+					
+				when 1 =>
+					if wb_nop = 0 then
 						case mewb_rz is
-							when "0000000000000000" => r0 <= mewb_data;
-							when "0000000000000001" => r1 <= mewb_data;
-							when "0000000000000010" => r2 <= mewb_data;
-							when "0000000000000011" => r3 <= mewb_data;
-							when "0000000000000100" => r4 <= mewb_data;
-							when "0000000000000101" => r5 <= mewb_data;
-							when "0000000000000110" => r6 <= mewb_data;
-							when "0000000000000111" => r7 <= mewb_data;
-							when "1000000000000001" =>  T <= mewb_data;
-							when "1000000000000010" => SP <= mewb_data;
-							when "1000000000000011" => IH <= mewb_data;
+							when "0000000000000000" => r0 <= wb_data;
+							when "0000000000000001" => r1 <= wb_data;
+							when "0000000000000010" => r2 <= wb_data;
+							when "0000000000000011" => r3 <= wb_data;
+							when "0000000000000100" => r4 <= wb_data;
+							when "0000000000000101" => r5 <= wb_data;
+							when "0000000000000110" => r6 <= wb_data;
+							when "0000000000000111" => r7 <= wb_data;
+							when "1000000000000001" =>  T <= wb_data;
+							when "1000000000000010" => SP <= wb_data;
+							when "1000000000000011" => IH <= wb_data;
 							when others => -- do nothing
 						end case;
 					end if;
-					
-					
-				when 1 =>
-			
 				when 2 =>
-				
+					if wb_nop = 1 then
+						wb_just_nop <= '1';
+					end if;
+					if wb_release = 1 then
+						wb_just_nop <= '0';
+					end if;
 				when 3 =>
-					
-				when 4 =>
 					
 				when others =>
 					--	do nothing
 			end case;
-			if wb_state = 4 then
+			if wb_state = 3 then
 				wb_state := 0;
 			else
 				wb_state := wb_state + 1;
@@ -1133,18 +1194,40 @@ begin
 		end case;
 	end process;
 	
-	process(clk_50m)
+	process(ifid_op)
 	begin
-		clk <= clk_50m;
+		case ifid_op is
+			when 0 => digit2<="0111111"; --NOP
+			when 1 => digit2<="0000110"; --B
+			when 7 => digit2<="1011011"; --ADDIU
+			when 12 => digit2<="1001111"; --LI
+			when 18 => digit2<="1100110"; --SW
+			when 29 => digit2<="1101101"; --MTIH
+			when 22 => digit2<="1111101"; --MFPC
+			when 4 => digit2<="0000111"; --SLL
+			when 16 => digit2<="1111111"; --LW
+			when 2 => digit2<="1101111"; --BEQZ
+			when others=>digit2<="0000000";
+		end case;
 	end process;
 	
-	
+	process(clk_50m)
+	begin
+--		clk <= clk_50m;
+
+--		if clk_50m'event and clk_50m = '1' then
+--			if clk_div = 1 then
+--				clk_div := 0;
+--				clk <= not clk;
+--			else
+--				clk_div := clk_div + 1;
+--			end if;
+--		end if;
+	end process;
 	
 	process(clk_single)
 	begin
-		--digit1 <= "000000" & clk_single;
-		digit2 <= "000000" & clk_single;
-		--clk <= clk_single;
+		clk <= clk_single;
 	end process;
 	
 	

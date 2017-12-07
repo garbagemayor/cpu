@@ -1,6 +1,5 @@
 
 
-# PlanAhead Generated physical constraints 
 
 NET "addr_ram1[17]" LOC = H17;
 NET "addr_ram1[16]" LOC = H16;
@@ -77,7 +76,6 @@ NET "digit1[3]" LOC = F7;
 NET "digit1[2]" LOC = E7;
 NET "digit1[1]" LOC = D7;
 NET "digit1[0]" LOC = C7;
-NET "digit2[0]" LOC = C9;
 NET "digit2[1]" LOC = D9;
 NET "digit2[2]" LOC = E9;
 NET "digit2[3]" LOC = F9;
@@ -115,3 +113,46 @@ NET "WE_ram1" LOC = M18;
 #NET "WE_ram2" LOC = M9;
 NET "wrn" LOC = U5;
 
+
+
+NET "addr_ram2[17]" LOC = U15;
+NET "addr_ram2[16]" LOC = U16;
+NET "addr_ram2[15]" LOC = V9;
+NET "addr_ram2[14]" LOC = V12;
+NET "addr_ram2[13]" LOC = V13;
+NET "addr_ram2[12]" LOC = V15;
+NET "addr_ram2[11]" LOC = U18;
+NET "addr_ram2[10]" LOC = T18;
+NET "addr_ram2[9]" LOC = T17;
+NET "addr_ram2[8]" LOC = R18;
+NET "addr_ram2[7]" LOC = R16;
+NET "addr_ram2[6]" LOC = R15;
+NET "addr_ram2[5]" LOC = P18;
+NET "addr_ram2[4]" LOC = P17;
+NET "addr_ram2[3]" LOC = P16;
+NET "addr_ram2[2]" LOC = N18;
+NET "addr_ram2[1]" LOC = N15;
+NET "addr_ram2[0]" LOC = N14;
+NET "data_ram2[15]" LOC = N11;
+NET "data_ram2[14]" LOC = N12;
+NET "data_ram2[13]" LOC = P10;
+NET "data_ram2[12]" LOC = P11;
+NET "data_ram2[11]" LOC = P12;
+NET "data_ram2[10]" LOC = P13;
+NET "data_ram2[9]" LOC = R10;
+NET "data_ram2[8]" LOC = R11;
+NET "data_ram2[7]" LOC = R12;
+NET "data_ram2[6]" LOC = R14;
+NET "data_ram2[5]" LOC = R13;
+NET "data_ram2[4]" LOC = T12;
+NET "data_ram2[3]" LOC = T14;
+NET "data_ram2[2]" LOC = T15;
+NET "data_ram2[1]" LOC = T16;
+NET "data_ram2[0]" LOC = U13;
+NET "EN_ram2" LOC = N10;
+NET "OE_ram2" LOC = R9;
+NET "WE_ram2" LOC = M9;
+
+# PlanAhead Generated physical constraints 
+
+NET "digit2[0]" LOC = C9;
