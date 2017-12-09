@@ -147,11 +147,13 @@ architecture behavioral of tyt_cpu2 is
 	signal mewb_wb			: std_logic := '0';
 	signal mewb_op			: int5 := 0;
 	signal mewb_rz			: array16 := zero;
+	signal wb_instant_rz			: array16 := zero;
 	signal wb_just_nop		: std_logic := '0';
 	shared variable wb_data 	: array16 := zero;
 	
 	--	WB
 	shared variable wb_state	: int5 := 0;
+	shared variable wb_rz	: array16 := zero;
 	shared variable wb_nop	: int5 := 0;
 	shared variable wb_release : int5 := 0;
 	
@@ -309,7 +311,6 @@ begin
 					end if;
 				when 3 =>
 					if if_nop = 0 then
-						led <= if_pc;
 						pc_next <= if_pc + "1";
 						ifid_pc <= if_pc + "1";
 						ifid_ins <= if_ins;
@@ -437,6 +438,7 @@ begin
 					elsif if_nop = 1 then
 						if_wb_data <= if_data;
 					end if;
+					led(7 downto 0) <= if_pc(7 downto 0);
 				when others =>
 					--	do nothing
 			end case;
@@ -475,251 +477,250 @@ begin
 				when 1 =>
 					if id_nop = 0 then
 						JR_jump <= '0';
-						
 						JR_nop <= '0';
-						
-						idex_pc <= id_pc;
-						idex_op <= id_op;
+						case id_op is
+							when 0 =>
+								--NOP
+								
+							when 1 =>
+								--B
+								wb := '0';
+								imm := Sign_extend11( id_ins(10 downto 0));
+								
+							when 2 =>
+								--BEQZ
+								wb := '0';
+								rx := setreg(id_ins(10 downto 8));
+								getreg( rx, a_reg );
+								imm := Sign_extend8( id_ins(7 downto 0) );
+								
+							when 3 =>
+								--BNEZ
+								wb := '0';
+								rx := setreg(id_ins(10 downto 8));
+								getreg( rx, a_reg );
+								imm := Sign_extend8( id_ins(7 downto 0) );
+								
+							when 4 =>
+								--SLL
+								wb := '1';
+								rx := setreg(id_ins(10 downto 8));
+								ry := setreg(id_ins( 7 downto 5));
+								getreg( rx, a_reg );
+								getreg( ry, b_reg );
+								imm := "0000000000000" & id_ins(4 downto 2);
+								rz := setreg(id_ins(10 downto 8));
+								
+							when 5 =>
+								--SRA
+								wb := '1';
+								rx := setreg(id_ins(10 downto 8));
+								ry := setreg(id_ins( 7 downto 5));
+								getreg( rx, a_reg );
+								getreg( ry, b_reg );
+								imm := "0000000000000" & id_ins(4 downto 2);
+								rz := setreg(id_ins(10 downto 8));
+								
+							when 6 =>
+								--ADDIU3
+								wb := '1';
+								rx := setreg(id_ins(10 downto 8));
+								getreg( rx, a_reg);
+								rz := setreg(id_ins(7 downto 5));
+								imm := Sign_extend5( id_ins(3) & id_ins(3 downto 0));
+								
+							when 7 =>	
+								--ADDIU
+								wb := '1';
+								rx := setreg(id_ins(10 downto 8));
+								getreg( rx, a_reg);
+								rz := setreg(id_ins(10 downto 8));
+								imm := Sign_extend8( id_ins(7 downto 0));
+								
+							when 8 =>
+								--SLTUI
+								wb := '1';
+								rx := setreg(id_ins(10 downto 8));
+								getreg( rx, a_reg );
+								imm := "00000000" & id_ins(7 downto 0);
+								rz := treg;
+								
+							when 9 =>
+								--BTEQZ
+								wb := '0';
+								rx := treg;
+								getreg( rx, a_reg );
+								imm := Sign_extend8( id_ins(7 downto 0));
+								
+							when 10 =>
+								--ADDSP
+								wb := '1';
+								rx := spreg;
+								getreg( rx, a_reg );
+								rz := spreg;
+								imm := Sign_extend8( id_ins(7 downto 0));
+								
+							when 11 =>
+								--MTSP
+								wb := '1';
+								rx := setreg( id_ins(7 downto 5));
+								getreg( rx, a_reg);
+								rz := spreg;
+								
+							when 12 =>
+								--LI
+								wb := '1';
+								rz := setreg(id_ins(10 downto 8));
+								imm := "00000000" & id_ins(7 downto 0);
+								
+							when 13 =>
+								--CMPI
+								wb := '1';
+								rx := setreg(id_ins(10 downto 8));
+								getreg( rx, a_reg );
+								imm := Sign_extend8(id_ins(7 downto 0));
+								rz := spreg;
+								
+							when 14 =>
+								--MOVE
+								wb := '1';
+								rx := setreg(id_ins(7 downto 5));
+								rz := setreg(id_ins(10 downto 8));
+								getreg(rx, a_reg);	
+								
+							when 15 =>
+								--LWSP
+								wb := '1';
+								rx := spreg;
+								getreg( rx, a_reg );
+								rz := setreg(id_ins(10 downto 8));
+								imm := Sign_extend8( id_ins(7 downto 0));
+								
+							when 16 =>
+								--LW
+								wb := '1';
+								rx := setreg(id_ins(10 downto 8));
+								getreg( rx, a_reg );
+								rz := setreg(id_ins(7 downto 5));
+								imm := Sign_extend5( id_ins(4 downto 0));
+								
+							when 17 =>
+								--SWSP
+								wb := '0';
+								rx := spreg;
+								getreg( rx, a_reg );
+								ry := setreg(id_ins(10 downto 8));
+								getreg( ry, b_reg );
+								imm := Sign_extend8( id_ins(7 downto 0));
+								
+							when 18 =>
+								--SW
+								wb := '0';
+								rx := setreg(id_ins(10 downto 8));
+								getreg( rx, a_reg );
+								ry := setreg(id_ins(7 downto 5));
+								getreg( ry, b_reg );
+								imm := Sign_extend5( id_ins(4 downto 0));
+								
+							when 19 =>
+								--ADDU
+								wb := '1';
+								rx := setreg(id_ins(10 downto 8));
+								ry := setreg(id_ins( 7 downto 5));
+								getreg( rx, a_reg );
+								getreg( ry, b_reg );
+								rz := setreg(id_ins(4 downto 2));
+								
+							when 20 =>
+								--SUBU
+								wb := '1';
+								rx := setreg(id_ins(10 downto 8));
+								ry := setreg(id_ins( 7 downto 5));
+								getreg( rx, a_reg );
+								getreg( ry, b_reg );
+								rz := setreg(id_ins(4 downto 2));
+								
+							when 21 =>
+								--JR
+								wb := '0';
+								JR_nop <= '1';
+								JR_jump <= '1';
+								getreg( setreg(id_ins(10 downto 8)), JR_pc);
+								
+							when 22 =>
+								--MFPC
+								wb := '1';
+								rz := setreg(id_ins(10 downto 8));
+								
+							when 23 =>
+								--AND
+								wb := '1';
+								rx := setreg(id_ins(10 downto 8));
+								ry := setreg(id_ins( 7 downto 5));
+								getreg( rx, a_reg );
+								getreg( ry, b_reg );
+								rz := setreg(id_ins(10 downto 8));
+								
+							when 24 =>
+								--CMP
+								wb := '1';
+								rx := setreg(id_ins(10 downto 8));
+								ry := setreg(id_ins( 7 downto 5));
+								getreg( rx, a_reg );
+								getreg( ry, b_reg );
+								rz := treg;
+								
+							when 25 => 
+								--OR
+								wb := '1';
+								rx := setreg(id_ins(10 downto 8));
+								ry := setreg(id_ins( 7 downto 5));
+								getreg( rx, a_reg );
+								getreg( ry, b_reg );
+								rz := setreg(id_ins(10 downto 8));
+								
+							when 26 =>
+								--SLT
+								wb := '1';
+								rx := setreg(id_ins(10 downto 8));
+								ry := setreg(id_ins( 7 downto 5));
+								getreg( rx, a_reg );
+								getreg( ry, b_reg );
+								rz := treg;
+							
+							when 27 =>
+								--NEG
+								--to be continued
+								
+							when 28 =>
+								--MFIH
+								wb := '1';
+								rx := ihreg;
+								getreg( rx, a_reg );
+								rz := setreg(id_ins(10 downto 8));
+								
+							when 29 =>
+								--MTIH
+								wb := '1';
+								rx := setreg( id_ins(10 downto 8));
+								getreg( rx, a_reg);
+								rz := ihreg;
+								
+								
+							when others =>
+						end case;
 					end if;
-					
-					case id_op is
-						when 0 =>
-							--NOP
-							
-						when 1 =>
-							--B
-							wb := '0';
-							imm := Sign_extend11( id_ins(10 downto 0));
-							
-						when 2 =>
-							--BEQZ
-							wb := '0';
-							rx := setreg(id_ins(10 downto 8));
-							getreg( rx, a_reg );
-							imm := Sign_extend8( id_ins(7 downto 0) );
-							
-						when 3 =>
-							--BNEZ
-							wb := '0';
-							rx := setreg(id_ins(10 downto 8));
-							getreg( rx, a_reg );
-							imm := Sign_extend8( id_ins(7 downto 0) );
-							
-						when 4 =>
-							--SLL
-							wb := '1';
-							rx := setreg(id_ins(10 downto 8));
-							ry := setreg(id_ins( 7 downto 5));
-							getreg( rx, a_reg );
-							getreg( ry, b_reg );
-							imm := "0000000000000" & id_ins(4 downto 2);
-							rz := setreg(id_ins(10 downto 8));
-							
-						when 5 =>
-							--SRA
-							wb := '1';
-							rx := setreg(id_ins(10 downto 8));
-							ry := setreg(id_ins( 7 downto 5));
-							getreg( rx, a_reg );
-							getreg( ry, b_reg );
-							imm := "0000000000000" & id_ins(4 downto 2);
-							rz := setreg(id_ins(10 downto 8));
-							
-						when 6 =>
-							--ADDIU3
-							wb := '1';
-							rx := setreg(id_ins(10 downto 8));
-							getreg( rx, a_reg);
-							rz := setreg(id_ins(7 downto 5));
-							imm := Sign_extend5( id_ins(3) & id_ins(3 downto 0));
-							
-						when 7 =>	
-							--ADDIU
-							wb := '1';
-							rx := setreg(id_ins(10 downto 8));
-							getreg( rx, a_reg);
-							rz := setreg(id_ins(10 downto 8));
-							imm := Sign_extend8( id_ins(7 downto 0));
-							
-						when 8 =>
-							--SLTUI
-							wb := '1';
-							rx := setreg(id_ins(10 downto 8));
-							getreg( rx, a_reg );
-							imm := "00000000" & id_ins(7 downto 0);
-							rz := treg;
-							
-						when 9 =>
-							--BTEQZ
-							wb := '0';
-							rx := treg;
-							getreg( rx, a_reg );
-							imm := Sign_extend8( id_ins(7 downto 0));
-							
-						when 10 =>
-							--ADDSP
-							wb := '1';
-							rx := spreg;
-							getreg( rx, a_reg );
-							rz := spreg;
-							imm := Sign_extend8( id_ins(7 downto 0));
-							
-						when 11 =>
-							--MTSP
-							wb := '1';
-							rx := setreg( id_ins(7 downto 5));
-							getreg( rx, a_reg);
-							rz := spreg;
-							
-						when 12 =>
-							--LI
-							wb := '1';
-							rz := setreg(id_ins(10 downto 8));
-							imm := "00000000" & id_ins(7 downto 0);
-							
-						when 13 =>
-							--CMPI
-							wb := '1';
-							rx := setreg(id_ins(10 downto 8));
-							getreg( rx, a_reg );
-							imm := Sign_extend8(id_ins(7 downto 0));
-							rz := spreg;
-							
-						when 14 =>
-							--MOVE
-							wb := '1';
-							rx := setreg(id_ins(7 downto 5));
-							rz := setreg(id_ins(10 downto 8));
-							getreg(rx, a_reg);	
-							
-						when 15 =>
-							--LWSP
-							wb := '1';
-							rx := spreg;
-							getreg( rx, a_reg );
-							rz := setreg(id_ins(10 downto 8));
-							imm := Sign_extend8( id_ins(7 downto 0));
-							
-						when 16 =>
-							--LW
-							wb := '1';
-							rx := setreg(id_ins(10 downto 8));
-							getreg( rx, a_reg );
-							rz := setreg(id_ins(7 downto 5));
-							imm := Sign_extend5( id_ins(4 downto 0));
-							
-						when 17 =>
-							--SWSP
-							wb := '0';
-							rx := spreg;
-							getreg( rx, a_reg );
-							ry := setreg(id_ins(10 downto 8));
-							getreg( ry, b_reg );
-							imm := Sign_extend8( id_ins(7 downto 0));
-							
-						when 18 =>
-							--SW
-							wb := '0';
-							rx := setreg(id_ins(10 downto 8));
-							getreg( rx, a_reg );
-							ry := setreg(id_ins(7 downto 5));
-							getreg( ry, b_reg );
-							imm := Sign_extend5( id_ins(4 downto 0));
-							
-						when 19 =>
-							--ADDU
-							wb := '1';
-							rx := setreg(id_ins(10 downto 8));
-							ry := setreg(id_ins( 7 downto 5));
-							getreg( rx, a_reg );
-							getreg( ry, b_reg );
-							rz := setreg(id_ins(4 downto 2));
-							
-						when 20 =>
-							--SUBU
-							wb := '1';
-							rx := setreg(id_ins(10 downto 8));
-							ry := setreg(id_ins( 7 downto 5));
-							getreg( rx, a_reg );
-							getreg( ry, b_reg );
-							rz := setreg(id_ins(4 downto 2));
-							
-						when 21 =>
-							--JR
-							wb := '0';
-							JR_nop <= '1';
-							JR_jump <= '1';
-							getreg( setreg(id_ins(10 downto 8)), JR_pc);
-							
-						when 22 =>
-							--MFPC
-							wb := '1';
-							rz := setreg(id_ins(10 downto 8));
-							
-						when 23 =>
-							--AND
-							wb := '1';
-							rx := setreg(id_ins(10 downto 8));
-							ry := setreg(id_ins( 7 downto 5));
-							getreg( rx, a_reg );
-							getreg( ry, b_reg );
-							rz := setreg(id_ins(10 downto 8));
-							
-						when 24 =>
-							--CMP
-							wb := '1';
-							rx := setreg(id_ins(10 downto 8));
-							ry := setreg(id_ins( 7 downto 5));
-							getreg( rx, a_reg );
-							getreg( ry, b_reg );
-							rz := treg;
-							
-						when 25 => 
-							--OR
-							wb := '1';
-							rx := setreg(id_ins(10 downto 8));
-							ry := setreg(id_ins( 7 downto 5));
-							getreg( rx, a_reg );
-							getreg( ry, b_reg );
-							rz := setreg(id_ins(10 downto 8));
-							
-						when 26 =>
-							--SLT
-							wb := '1';
-							rx := setreg(id_ins(10 downto 8));
-							ry := setreg(id_ins( 7 downto 5));
-							getreg( rx, a_reg );
-							getreg( ry, b_reg );
-							rz := treg;
-						
-						when 27 =>
-							--NEG
-							--to be continued
-							
-						when 28 =>
-							--MFIH
-							wb := '1';
-							rx := ihreg;
-							getreg( rx, a_reg );
-							rz := setreg(id_ins(10 downto 8));
-							
-						when 29 =>
-							--MTIH
-							wb := '1';
-							rx := setreg( id_ins(10 downto 8));
-							getreg( rx, a_reg);
-							rz := ihreg;
-							
-							
-						when others =>
-					end case;
 				
 				when 2 =>
 					if id_nop = 0 then
+						idex_pc <= id_pc;
+						idex_op <= id_op;
 						idex_rz <= rz;
 						idex_imm <= imm;
 						idex_wb <= wb;
 					end if;
+					
+				when 3 =>
 				
 				when others =>
 					--	do nothing
@@ -916,10 +917,8 @@ begin
 					--	set register
 					if ex_nop = 0 then
 						B_jump <= '0';
-						LW_jump <= '0';
-						
 						B_nop <= '0';
-						
+						LW_jump <= '0';
 						LW_nop <= '0';
 						
 						data_conf_A <= '0';
@@ -1133,19 +1132,21 @@ begin
 				when 0 =>
 					if access_ram2 = '1' then -- 暂停一个周期等ram2
 						wb_nop := 1;
+						wb_instant_rz <= mewb_rz;
 					else
-						wb_nop := 0;
-						wb_data := mewb_data;
+						if wb_just_nop = '1' then -- 如果是暂停回来,那么数据就从ram2来,地址从寄存器来
+							wb_data := if_wb_data;
+							wb_rz := wb_instant_rz;
+							wb_release := 1;
+						else -- 一般情况:访存不访问ram2
+							wb_nop := 0;
+							wb_data := mewb_data;
+							wb_rz := mewb_rz;
+						end if;
 					end if;
-					
-					if wb_just_nop = '1' then -- 如果是暂停回来,那么数据就从ram2来
-						wb_data := if_wb_data;
-						wb_release := 1;
-					end if;
-					
 				when 1 =>
 					if wb_nop = 0 then
-						case mewb_rz is
+						case wb_rz is
 							when "0000000000000000" => r0 <= wb_data;
 							when "0000000000000001" => r1 <= wb_data;
 							when "0000000000000010" => r2 <= wb_data;
@@ -1194,7 +1195,7 @@ begin
 		end case;
 	end process;
 	
-	process(ifid_op)
+	process(clk)
 	begin
 		case ifid_op is
 			when 0 => digit2<="0111111"; --NOP
@@ -1202,13 +1203,15 @@ begin
 			when 7 => digit2<="1011011"; --ADDIU
 			when 12 => digit2<="1001111"; --LI
 			when 18 => digit2<="1100110"; --SW
-			when 29 => digit2<="1101101"; --MTIH
+--			when 29 => digit2<="1101101"; --MTIH
+			when 21 => digit2<="1101101"; --JR
 			when 22 => digit2<="1111101"; --MFPC
 			when 4 => digit2<="0000111"; --SLL
 			when 16 => digit2<="1111111"; --LW
 			when 2 => digit2<="1101111"; --BEQZ
 			when others=>digit2<="0000000";
 		end case;
+		led(15 downto 8) <= r6(7 downto 0); --R6
 	end process;
 	
 	process(clk_50m)
