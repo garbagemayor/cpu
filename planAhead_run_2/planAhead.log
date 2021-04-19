@@ -50,10 +50,10 @@ open_rtl_design: Time (s): elapsed = 00:00:07 . Memory (MB): peak = 503.941 ; ga
 update_compile_order -fileset sim_1
 exit
 ERROR: [PlanAhead 12-106] *** Exception: ui.h.b: Found deleted key in HTclEventBroker. Verify if the classes listed here call cleanup()
-HTclEvent: DEBUG_CORE_CONFIG_CHANGE   Classes: ui.views.aR 
-HTclEvent: DEBUG_PORT_CONFIG_CHANGE   Classes: ui.views.aR 
-HTclEvent: SIGNAL_MODIFY   Classes: ui.views.aR 
-HTclEvent: SIGNAL_BUS_MODIFY   Classes: ui.views.aR 
+HTclEvent: DEBUG_CORE_CONFIG_CHANGE   Classes: ui.views.aR
+HTclEvent: DEBUG_PORT_CONFIG_CHANGE   Classes: ui.views.aR
+HTclEvent: SIGNAL_MODIFY   Classes: ui.views.aR
+HTclEvent: SIGNAL_BUS_MODIFY   Classes: ui.views.aR
  (See C:/Users/Yijun Tan/Desktop/threeweeks/tyt_cpu\planAhead_pid5716.debug)
 ERROR: [Common 17-39] 'stop_gui' failed due to earlier errors.
 INFO: [Common 17-206] Exiting PlanAhead at Thu Nov 30 20:50:07 2017...

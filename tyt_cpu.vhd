@@ -10,15 +10,15 @@ entity tyt_cpu is
 		clk		: in std_logic;
 		--clk_50m	: in std_logic;
 		--rst		: in std_logic;
-		led		: out std_logic_vector(15 downto 0) := "0000000000000000";	
+		led		: out std_logic_vector(15 downto 0) := "0000000000000000";
 		OE_ram1 : out  STD_LOGIC := '1';
 		WE_ram1 : out  STD_LOGIC := '1';
-		EN_ram1 : out  STD_LOGIC := '0';		
+		EN_ram1 : out  STD_LOGIC := '0';
 		data_ram1 : inout  STD_LOGIC_VECTOR (15 downto 0) := "0000000000000000";
 		addr_ram1 : out  STD_LOGIC_VECTOR (17 downto 0) := "000000000000000000";
 		OE_ram2 : out  STD_LOGIC := '1';
 		WE_ram2 : out  STD_LOGIC := '1';
-		EN_ram2 : out  STD_LOGIC := '0';		
+		EN_ram2 : out  STD_LOGIC := '0';
 		data_ram2 : inout  STD_LOGIC_VECTOR (15 downto 0) := "0000000000000000";
 		addr_ram2 : out  STD_LOGIC_VECTOR (17 downto 0) := "000000000000000000"
 		--rdn: out STD_LOGIC := '1';
@@ -34,59 +34,59 @@ end tyt_cpu;
 architecture Behavioral of tyt_cpu is
 	subtype array16	is std_logic_vector(15 downto 0);
 	subtype int5  is integer range 0 to 31;
-	
+
 	constant zero    : array16 :="0000000000000000";
 	constant zeroreg : array16 :="1000000000000000";
 	constant treg    : array16 :="1000000000000001";
 	constant spreg   : array16 :="1000000000000010";
 	constant ihreg   : array16 :="1000000000000011";
-	
+
 	--signal my_clk	: std_logic := "1";
-	
+
 	shared variable pc : array16 := zero;
-	
-	
+
+
 	signal B_nop : std_logic := '0';
 	signal JR_nop : std_logic := '0';
 	signal LW_nop : std_logic := '0';
 
 	signal B_jump : std_logic := '0';
 	signal JR_jump : std_logic := '0';
-	signal LW_jump : std_logic := '0';	
-	
+	signal LW_jump : std_logic := '0';
+
 	signal pc_next : array16 :=zero;
 	signal pc_reg : array16 :=zero;
 	signal pc_res : array16 :=zero;
 	signal pc_LW : array16 :=zero;
-	
+
 	signal LW_conf_A : std_logic := '0';
 	signal LW_conf_B : std_logic := '0';
 	signal data_conf_A : std_logic := '0';
 	signal data_conf_B : std_logic := '0';
-	
+
 	--	IF
 	shared variable if_state : int5 := 0;
 	shared variable if_ins : array16 := zero;
 	shared variable if_pc : array16 := zero;
 	shared variable if_op : int5 := 0;
-	
+
 	--	IF/ID
 	signal ifid_op : int5 := 0;
 	signal ifid_pc : array16 := zero;
 	signal ifid_ins : array16 :=zero;
-	
-	
-	
+
+
+
 	--	ID
 	shared variable id_state : int5 := 0;
 	shared variable id_op : int5 := 0;
 	shared variable id_ins : array16 :=zero;
 	shared variable id_pc : array16 :=zero;
-	
+
 	shared variable JR_pc : array16 :=zero;
-	
+
 	signal a_reg : array16 := zero;
-	signal b_reg : array16 := zero;	
+	signal b_reg : array16 := zero;
 	shared variable id_imm : array16 := zero;
 	shared variable rx : array16 :=zero;
 	shared variable ry : array16 :=zero;
@@ -94,8 +94,8 @@ architecture Behavioral of tyt_cpu is
 	shared variable ex : std_logic := '0';	 --ex control
 	shared variable me : int5 := 0;  		 --me control
 	shared variable wb : std_logic := '0';  --wb control
-	
-	
+
+
 	--	ID/EX
 	signal idex_op : int5 := 0;
 	signal idex_pc : array16 := zero;
@@ -107,7 +107,7 @@ architecture Behavioral of tyt_cpu is
 	signal idex_imm : array16 := zero;
 	signal idex_me : int5 := 0;
 	signal idex_wb : std_logic := '0';
-	
+
 	--	EX
 	shared variable ex_state : int5 := 0;
 	shared variable ex_op : int5 := 0;
@@ -124,10 +124,10 @@ architecture Behavioral of tyt_cpu is
 	shared variable ex_b : array16 :=zero;
 	shared variable ex_me : int5 := 0;
 	shared variable ex_wb : std_logic := '0';
-	
-	
-					
-	
+
+
+
+
 	--	EX/ME
 	signal exme_op : int5 := 0;
 	signal exme_pc :array16 := zero;
@@ -136,7 +136,7 @@ architecture Behavioral of tyt_cpu is
 	signal exme_me : int5 := 0;
 	signal exme_wb : std_logic := '0';
 	signal exme_SW : array16 :=zero;
-	
+
 	--	ME
 	shared variable me_state : int5 := 0;
 	shared variable me_op : int5 := 0;
@@ -147,22 +147,22 @@ architecture Behavioral of tyt_cpu is
 	shared variable me_wb : std_logic := '0';
 	shared variable me_SW : array16 :=zero;
 	shared variable data : array16 :=zero;
-	
+
 	--	ME/WB
-	
+
 	signal mewb_res : array16 := zero;
 	signal mewb_op : int5 := 0;
 	signal mewb_rz : array16 := zero;
 	signal mewb_wb : std_logic := '0';
-	
+
 	--	WB
 	shared variable wb_state : int5 := 0;
 	shared variable wb_res : array16 := zero;
 	shared variable wb_op : int5 := 0;
 	shared variable wb_rz : array16 := zero;
 	shared variable wb_wb : std_logic := '0';
-	
-	
+
+
 	--	reg
 	signal r0				: array16 := "0000000000000000";
 	signal r1				: array16 := "0000000000000000";
@@ -175,7 +175,7 @@ architecture Behavioral of tyt_cpu is
 	signal T					: array16 := "0000000000000000";
 	signal SP				: array16 := "0000000000000000";
 	signal IH				: array16 := "0000000000000000";
-	
+
 	function Sign_extend4(imm : std_logic_vector(3 downto 0)) return array16 is
 	begin
 		if imm(3) = '1' then
@@ -183,8 +183,8 @@ architecture Behavioral of tyt_cpu is
 		else
 			return "000000000000" & imm;
 		end if;
-	end function;	
-	
+	end function;
+
 	function Sign_extend5(imm : std_logic_vector(4 downto 0)) return array16 is
 	begin
 		if imm(4) = '1' then
@@ -192,8 +192,8 @@ architecture Behavioral of tyt_cpu is
 		else
 			return "00000000000" & imm;
 		end if;
-	end function;	
-	
+	end function;
+
 	function Sign_extend8(imm : std_logic_vector(7 downto 0)) return array16 is
 	begin
 		if imm(7) = '1' then
@@ -202,7 +202,7 @@ architecture Behavioral of tyt_cpu is
 			return "00000000" & imm;
 		end if;
 	end function;
-	
+
 	function Sign_extend11(imm : std_logic_vector(10 downto 0)) return array16 is
 	begin
 		if imm(10) = '1' then
@@ -211,33 +211,33 @@ architecture Behavioral of tyt_cpu is
 			return "00000" & imm;
 		end if;
 	end function;
-	
+
 	function Zero_extend3(imm : std_logic_vector(2 downto 0)) return array16 is
 	begin
 		return "0000000000000" & imm;
 	end function;
-	
+
 	function Zero_extend5(imm : std_logic_vector(4 downto 0)) return array16 is
 	begin
 		return "00000000000" & imm;
 	end function;
-	
-	
+
+
 	function Zero_extend8(imm : std_logic_vector(7 downto 0)) return array16 is
 	begin
 		return "00000000" & imm;
 	end function;
-	
+
 	function Zero_extend11(imm : std_logic_vector(10 downto 0)) return array16 is
 	begin
 		return "00000" & imm;
 	end function;
-	
+
 	function setreg(reg : std_logic_vector(2 downto 0)) return array16 is
 	begin
 		return "0000000000000" & reg;
 	end function;
-	
+
 	procedure getreg(reg : array16; signal data : out array16) is
 	begin
 		case reg is
@@ -255,15 +255,15 @@ architecture Behavioral of tyt_cpu is
 			when others => data <= "0000000000000000";
 		end case;
 	end procedure;
-	
-	
+
+
 begin
 ----------------------------- IF -------------------------------
 	process (clk)
 	begin
 		if (clk'event and clk = '1') then
 			case if_state is
-				when 0 =>  
+				when 0 =>
 					if JR_jump = '1' then --JR type
 						if_pc := pc_reg;
 					elsif B_jump = '1' then --B type
@@ -390,8 +390,8 @@ begin
 									if_op := 27;
 								when others =>
 							end case;
-									
-						
+
+
 						when "11110" =>
 							case if_ins(0) is
 								when '0' =>
@@ -402,7 +402,7 @@ begin
 									if_op := 29;
 								when others =>
 							end case;
-						
+
 						when others =>
 					end case;
 				when 4 =>
@@ -410,9 +410,9 @@ begin
 					ifid_op <= if_op;
 					ifid_ins <= if_ins;
 					ifid_pc <= pc_next;
-							
-							
-				
+
+
+
 				when others =>
 			end case;
 			if if_state = 4 then
@@ -422,7 +422,7 @@ begin
 			end if;
 		end if;
 	end process;
-	
+
 ----------------------------- ID -------------------------------
 
 	process(clk)
@@ -430,7 +430,7 @@ begin
 		if (clk'event and clk = '1') then
 			case id_state is
 				when 0 =>
-			
+
 					if (B_nop = '1' or JR_nop = '1') or LW_nop = '1' then
 						id_op := 0;
 					else
@@ -438,25 +438,25 @@ begin
 						id_ins := ifid_ins;
 						id_pc := ifid_pc;
 					end if;
-					
-				
-				
+
+
+
 					--B_nop <= '0';
 					JR_nop <= '0';
 					JR_jump <= '0';
 					--LW_nop <= '0';
-				
+
 					rx := "1111111111111111";
 					ry := "1111111111111111";
 					rz := "1111111111111111";
-					
+
 					me := 0;
 					wb := '0';
-			
+
 				when 1 =>
-			
+
 				when 2 =>
-			
+
 				when 3 =>
 					case id_op is
 						when 0 =>
@@ -465,21 +465,21 @@ begin
 							--B
 							wb := '0';
 							id_imm := Sign_extend11( id_ins(10 downto 0));
-						
+
 						when 2 =>
 							--BEQZ
 							wb := '0';
 							rx := setreg(id_ins(10 downto 8));
 							getreg(rx, a_reg);
 							id_imm := Sign_extend8(id_ins(7 downto 0));
-							
+
 						when 3 =>
 							--BNEZ
 							wb := '0';
 							rx := setreg(id_ins(10 downto 8));
 							getreg(rx, a_reg);
 							id_imm := Sign_extend8(id_ins(7 downto 0));
-						
+
 						when 4 =>
 							--SLL
 							wb := '1';
@@ -489,7 +489,7 @@ begin
 							getreg(rx, a_reg);
 							getreg(ry, b_reg);
 							id_imm := Zero_extend3(id_ins(4 downto 2));
-							
+
 						when 5 =>
 							--SRA
 							wb := '1';
@@ -499,7 +499,7 @@ begin
 							getreg(rx, a_reg);
 							getreg(ry, b_reg);
 							id_imm := Zero_extend3(id_ins(4 downto 2));
-							
+
 						when 6 =>
 							--ADDIU3
 							wb := '1';
@@ -507,7 +507,7 @@ begin
 							rz := setreg(id_ins(7 downto 5));
 							getreg(rx, a_reg);
 							id_imm := Sign_extend4(id_ins(3 downto 0));
-						
+
 						when 7 =>
 							--ADDIU
 							wb := '1';
@@ -515,7 +515,7 @@ begin
 							rz := rx;
 							getreg(rx, a_reg);
 							id_imm := Sign_extend8(id_ins(7 downto 0));
-							
+
 						when 8 =>
 							--SLTUI
 							wb := '1';
@@ -523,13 +523,13 @@ begin
 							rz := treg;
 							getreg(rx, a_reg);
 							id_imm := Sign_extend8(id_ins(7 downto 0));
-							
+
 						when 9 =>
 							--BTEQZ
 							wb := '0';
 							rx := treg;
 							id_imm := Sign_extend8(id_ins(7 downto 0));
-						
+
 						when 10 =>
 							--ADDSP
 							wb := '1';
@@ -537,20 +537,20 @@ begin
 							rz := rx;
 							getreg(rx, a_reg);
 							id_imm := Sign_extend8(id_ins(7 downto 0));
-							
+
 						when 11 =>
 							--MTSP
 							wb := '1';
 							rx := setreg(id_ins(7 downto 5));
 							rz := spreg;
 							getreg(rx, a_reg);
-						
+
 						when 12 =>
 							--LI
 							wb := '1';
 							rz := setreg(id_ins(10 downto 8));
 							id_imm := Zero_extend8(id_ins(7 downto 0));
-							
+
 						when 13 =>
 							--CMPI
 							wb := '1';
@@ -558,14 +558,14 @@ begin
 							rz := treg;
 							getreg(rx, a_reg);
 							id_imm := Sign_extend8(id_ins(7 downto 0));
-							
+
 						when 14 =>
 							--MOVE
 							wb := '1';
 							rx := setreg(id_ins(7 downto 5));
 							rz := setreg(id_ins(10 downto 8));
 							getreg(rx, a_reg);
-							
+
 						when 15 =>
 							--LWSP
 							wb := '1';
@@ -574,7 +574,7 @@ begin
 							rz := setreg(id_ins(10 downto 8));
 							getreg(rx, a_reg);
 							id_imm := Sign_extend8(id_ins(7 downto 0));
-							
+
 						when 16 =>
 							--LW
 							wb := '1';
@@ -583,7 +583,7 @@ begin
 							rz := setreg(id_ins(7 downto 5));
 							getreg(rx, a_reg);
 							id_imm := Sign_extend5(id_ins(4 downto 0));
-							
+
 						when 17 =>
 							--SWSP
 							wb := '0';
@@ -593,7 +593,7 @@ begin
 							getreg(rx, a_reg);
 							getreg(ry, b_reg);
 							id_imm := Sign_extend8(id_ins(7 downto 0));
-							
+
 						when 18 =>
 							--SW
 							wb := '0';
@@ -603,7 +603,7 @@ begin
 							getreg(rx, a_reg);
 							getreg(ry, b_reg);
 							id_imm := Sign_extend5(id_ins(4 downto 0));
-							
+
 						when 19 =>
 							--ADDU
 							wb := '1';
@@ -612,7 +612,7 @@ begin
 							rz := setreg(id_ins(4 downto 2));
 							getreg(rx, a_reg);
 							getreg(ry, b_reg);
-						
+
 						when 20 =>
 							--SUBU
 							wb := '1';
@@ -621,20 +621,20 @@ begin
 							rz := setreg(id_ins(4 downto 2));
 							getreg(rx, a_reg);
 							getreg(ry, b_reg);
-							
+
 						when 21 =>
 							--JR
 							wb := '0';
 							JR_nop <= '1';
 							JR_jump <= '1';
 							getreg(setreg(id_ins(10 downto 8)), pc_reg);
-							
+
 						when 22 =>
 							--MFPC
 							wb := '1';
 							rx :=setreg(id_ins(10 downto 8));
 							-----r[x]<=PC         be continued
-							
+
 						when 23 =>
 							--AND
 							wb := '1';
@@ -643,7 +643,7 @@ begin
 							rz := rx;
 							getreg(rx, a_reg);
 							getreg(ry, b_reg);
-							
+
 						when 24 =>
 							--CMP
 							wb := '1';
@@ -652,7 +652,7 @@ begin
 							rz := treg;
 							getreg(rx, a_reg);
 							getreg(ry, b_reg);
-							
+
 						when 25 =>
 							--OR
 							wb := '1';
@@ -661,16 +661,16 @@ begin
 							rz := rx;
 							getreg(rx, a_reg);
 							getreg(ry, b_reg);
-								
+
 						when 26 =>
-							--SLT							
+							--SLT
 							wb := '1';
 							rx := setreg(id_ins(10 downto 8));
 							ry := setreg(id_ins(7 downto 5));
 							rz := treg;
 							getreg(rx, a_reg);
 							getreg(ry, b_reg);
-						
+
 						when 27 =>
 							--NEG
 							wb := '1';
@@ -678,45 +678,45 @@ begin
 							rz := setreg(id_ins(10 downto 8));
 
 							-- r[x]<=0-r[y]     tobe continued
-							
-							
-							
+
+
+
 						when 28 =>
-							--MFIH							
+							--MFIH
 							wb := '1';
 							rx := ihreg;
 							rz := setreg(id_ins(10 downto 8));
-							getreg(rx, a_reg);							
-						
+							getreg(rx, a_reg);
+
 						when 29 =>
 							--MTIH
 							wb := '1';
 							rx := setreg(id_ins(10 downto 8));
 							rz := ihreg;
 							getreg(rx, a_reg);
-							
-							
-						when others =>							
-						
+
+
+						when others =>
+
 					end case;
-			
+
 			when 4 =>
-				
-				
+
+
 				idex_pc <= id_pc;
 				idex_op <= id_op;
-				
+
 				idex_me <= me;
 				idex_wb <= wb;
-				
+
 				idex_rx <= rx;
 				idex_ry <= ry;
 				idex_rz <= rz;
 				idex_a <= a_reg;
 				idex_b <= b_reg;
 				idex_imm <= id_imm;
-			
-			when others =>			
+
+			when others =>
 			end case;
 			if id_state = 4 then
 				id_state := 0;
@@ -733,11 +733,11 @@ begin
 		if (clk'event and clk = '1') then
 			case ex_state is
 				when 0 =>
-					
-					
-			
+
+
+
 				when 1 =>
-					
+
 					if  B_nop = '1' then
 						ex_op := 0;
 					else
@@ -748,12 +748,12 @@ begin
 						ex_a := idex_a;
 						ex_b := idex_b;
 						ex_imm := idex_imm;
-					
+
 						ex_pc := idex_pc;
 						ex_me := idex_me;
 						ex_wb := idex_wb;
 					end if;
-					
+
 					if data_conf_A='1' then
 						A := ex_res;
 					elsif LW_conf_A ='1' then
@@ -761,7 +761,7 @@ begin
 					else
 						A := ex_a;
 					end if;
-					
+
 					if data_conf_B='1' then
 						B := ex_res;
 					elsif LW_conf_B ='1' then
@@ -769,18 +769,18 @@ begin
 					else
 						B := ex_b;
 					end if;
-					
+
 					data_conf_A <= '0';
 					--LW_conf_A <= '0';
 					data_conf_B <= '0';
 					--LW_conf_B <= '0';
-					
+
 					B_nop <= '0';
 					B_jump <= '0';
 					LW_nop <= '0';
 					LW_jump <= '0';
-					
-					
+
+
 				when 2 =>
 				when 3 =>
 					case ex_op is
@@ -800,7 +800,7 @@ begin
 							end if;
 							--  to be continued
 						when 3 =>
-							--BNEZ 
+							--BNEZ
 							if A /= zero then
 								B_nop <= '1';
 								B_jump <= '1';
@@ -810,24 +810,24 @@ begin
 							---SLL
 							if ex_imm = zero then
 								res := to_stdlogicvector(to_bitvector(B) sll 8);
-							else 
+							else
 								res := to_stdlogicvector(to_bitvector(B) sll conv_integer(ex_imm));
 							end if;
 						when 5 =>
 							--SRA
 							if ex_imm = zero then
 								res := to_stdlogicvector(to_bitvector(B) sra 8);
-							else 
+							else
 								res := to_stdlogicvector(to_bitvector(B) sra conv_integer(ex_imm));
 							end if;
 						when 6 =>
 							--ADDIU3
 							res := A + ex_imm;
-						when 7 => 
+						when 7 =>
 							--ADDIU
 							res := A + ex_imm;
 						when 8 =>
-							--SLTUI  
+							--SLTUI
 							if conv_integer(A) < conv_integer(ex_imm) then
 								res := "0000000000000001";
 							else
@@ -913,12 +913,12 @@ begin
 							--MTIH
 							res := A;
 						when others =>
-						
-						
+
+
 					end case;
 				when 4 =>
-				
-					
+
+
 					if  ex_wb = '1' and id_op /= 0 and ex_op /= 0 then
 						if ex_rz = rx then
 							data_conf_A <= '1';
@@ -927,7 +927,7 @@ begin
 							data_conf_B <= '1';
 						end if;
 					end if;
-					
+
 					if (ex_op = 15 or ex_op = 16) and id_op /= 0 then
 						if ex_rz = rx or ex_rz = ry then
 							LW_jump <= '1';
@@ -935,8 +935,8 @@ begin
 							pc_LW <= ex_pc;
 						end if;
 					end if;
-					
-					
+
+
 					ex_res <= res;
 					exme_me <= ex_me;
 					exme_wb <= ex_wb;
@@ -944,8 +944,8 @@ begin
 					exme_op <= ex_op;
 					exme_rz <= ex_rz;
 					exme_SW <= addr;
-					
-				
+
+
 				when others =>
 			end case;
 			if ex_state = 4 then
@@ -972,31 +972,31 @@ begin
 					me_res := ex_res;
 					me_rz := exme_rz;
 					me_SW := exme_SW;
-					
+
 					LW_conf_A <= '0';
 					LW_conf_B <= '0';
 				when 1 =>
-				
+
 				when 2 =>
 					case me_me is
 						when 1 =>
 							--SW
 							EN_ram2 <= '0';
 							WE_ram2 <= '1';
-							OE_ram2 <= '1';								
+							OE_ram2 <= '1';
 							data_ram2 <= me_res;
 							addr_ram2 <= "00" & me_SW;
-						when 2 => 
+						when 2 =>
 							--LW
 							EN_ram2 <= '0';
 							WE_ram2 <= '1';
-							OE_ram2 <= '1';								
+							OE_ram2 <= '1';
 							data_ram2 <= "ZZZZZZZZZZZZZZZZ";
 							addr_ram2 <= "00" & me_res;
 						when others =>
 							data := me_res;
 					end case;
-				
+
 				when 3 =>
 					case me_me is
 						when 1 =>
@@ -1007,7 +1007,7 @@ begin
 							OE_ram2 <= '0';
 						when others =>
 					end case;
-				
+
 				when 4 =>
 					case me_me is
 						when 1 =>
@@ -1017,24 +1017,24 @@ begin
 							--LW
 							data := data_ram2;
 							OE_ram2 <= '1';
-						when others => 
+						when others =>
 					end case;
-				
-				
+
+
 					if me_wb = '1' and me_op /= 0 and id_op /= 0 then
-						if me_rz = rx then  
+						if me_rz = rx then
 							LW_conf_A <= '1';
 						end if;
 						if me_rz = ry then
 							LW_conf_B <= '1';
 						end if;
 					end if;
-					
+
 					mewb_res <= data;
 					mewb_wb <= wb;
 					mewb_op <= me_op;
 					mewb_rz <= me_rz;
-				
+
 				when others =>
 			end case;
 			if me_state = 4 then
@@ -1054,7 +1054,7 @@ begin
 	begin
 		if (clk'event and clk = '1') then
 			case wb_state is
-				when 0 =>					
+				when 0 =>
 					if mewb_wb = '1' and mewb_op /= 0 then
 						case mewb_rz is
 							when "0000000000000000" => r0 <= me_res;
@@ -1076,7 +1076,7 @@ begin
 				when 2 =>
 				when 3 =>
 				when 4 =>
-				
+
 				when others =>
 			end case;
 			if wb_state = 4 then
@@ -1089,4 +1089,3 @@ begin
 
 
 end Behavioral;
-

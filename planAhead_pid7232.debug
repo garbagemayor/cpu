@@ -11,10 +11,10 @@
 #-------------------------------------------------------------------------------
 12/4/17 10:31:44 PM
 ui.h.b: Found deleted key in HTclEventBroker. Verify if the classes listed here call cleanup()
-HTclEvent: DEBUG_CORE_CONFIG_CHANGE   Classes: ui.views.aR 
-HTclEvent: DEBUG_PORT_CONFIG_CHANGE   Classes: ui.views.aR 
-HTclEvent: SIGNAL_MODIFY   Classes: ui.views.aR 
-HTclEvent: SIGNAL_BUS_MODIFY   Classes: ui.views.aR 
+HTclEvent: DEBUG_CORE_CONFIG_CHANGE   Classes: ui.views.aR
+HTclEvent: DEBUG_PORT_CONFIG_CHANGE   Classes: ui.views.aR
+HTclEvent: SIGNAL_MODIFY   Classes: ui.views.aR
+HTclEvent: SIGNAL_BUS_MODIFY   Classes: ui.views.aR
 
 	at ui.h.e.CF(SourceFile:217)
 	at ui.h.I.CF(SourceFile:702)
@@ -69,4 +69,3 @@ HTclEvent: SIGNAL_BUS_MODIFY   Classes: ui.views.aR
 	at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:146)
 	at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:138)
 	at java.awt.EventDispatchThread.run(EventDispatchThread.java:91)
-

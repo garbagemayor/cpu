@@ -20,10 +20,10 @@ INFO: [Common 17-344] 'set_param' was cancelled
 INFO: [Common 17-344] 'source' was cancelled
 exit
 ERROR: [PlanAhead 12-106] *** Exception: ui.h.b: Found deleted key in HTclEventBroker. Verify if the classes listed here call cleanup()
-HTclEvent: DEBUG_CORE_CONFIG_CHANGE   Classes: ui.views.aR 
-HTclEvent: DEBUG_PORT_CONFIG_CHANGE   Classes: ui.views.aR 
-HTclEvent: SIGNAL_MODIFY   Classes: ui.views.aR 
-HTclEvent: SIGNAL_BUS_MODIFY   Classes: ui.views.aR 
+HTclEvent: DEBUG_CORE_CONFIG_CHANGE   Classes: ui.views.aR
+HTclEvent: DEBUG_PORT_CONFIG_CHANGE   Classes: ui.views.aR
+HTclEvent: SIGNAL_MODIFY   Classes: ui.views.aR
+HTclEvent: SIGNAL_BUS_MODIFY   Classes: ui.views.aR
  (See C:/Users/rv/Desktop/tyt_cpu2/tyt_cpu2\planAhead_pid7232.debug)
 ERROR: [Common 17-39] 'stop_gui' failed due to earlier errors.
 INFO: [Common 17-206] Exiting PlanAhead at Mon Dec 04 22:31:44 2017...

@@ -1,6 +1,6 @@
 
 
-# PlanAhead Generated physical constraints 
+# PlanAhead Generated physical constraints
 
 NET "addr_ram1[17]" LOC = H17;
 NET "addr_ram1[16]" LOC = H16;
@@ -114,4 +114,3 @@ NET "tsre" LOC = N9;
 NET "WE_ram1" LOC = M18;
 #NET "WE_ram2" LOC = M9;
 NET "wrn" LOC = U5;
-
